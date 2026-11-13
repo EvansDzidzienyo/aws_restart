@@ -1,45 +1,62 @@
-import csv
-import copy
-myVehicle = {
-    "vin" : "<empty>",
-    "make" : "<empty>" ,
-    "model" : "<empty>" ,
-    "year" : 0,
-    "range" : 0,
-    "topSpeed" : 0,
-    "zeroSixty" : 0.0,
-    "mileage" : 0
-}
+"""Read a vehicle inventory CSV and display each vehicle's details."""
 
-for key, value in myVehicle.items():
-    print("{} : {}".format(key,value))
-    myInventoryList = []
-    
-    
-    with open('car_fleet.csv') as csvFile:
-        csvReader = csv.reader(csvFile, delimiter=',')  
-        lineCount = 0  
-        for row in csvReader:
-            if lineCount == 0:
-                print(f'Column names are: {", ".join(row)}')  
-                lineCount += 1  
-            else:  
-                print(f'vin: {row[0]} make: {row[1]}, model: {row[2]}, year: {row[3]}, range: {row[4]}, topSpeed: {row[5]}, zeroSixty: {row[6]}, mileage: {row[7]}')  
-                currentVehicle = copy.deepcopy(myVehicle)  
-                currentVehicle["vin"] = row[0]  
-                currentVehicle["make"] = row[1]  
-                currentVehicle["model"] = row[2]  
-                currentVehicle["year"] = row[3]  
-                currentVehicle["range"] = row[4]  
-                currentVehicle["topSpeed"] = row[5]  
-                currentVehicle["zeroSixty"] = row[6]  
-                currentVehicle["mileage"] = row[7]  
-                myInventoryList.append(currentVehicle)  
-                lineCount += 1  
-    print
-    
-    
-    for myCarProperties in myInventoryList:
-        for key, value in myCarProperties.items():
-            print("{} : {}".format(key,value))
-            print("-----")
+import csv
+from pathlib import Path
+from typing import Any
+
+
+REQUIRED_COLUMNS = (
+    "vin",
+    "make",
+    "model",
+    "year",
+    "range",
+    "topSpeed",
+    "zeroSixty",
+    "mileage",
+)
+
+
+def load_vehicle_inventory(csv_path: str | Path = "car_fleet.csv") -> list[dict[str, Any]]:
+    """Load vehicle rows from CSV, validating the expected columns and values."""
+    path = Path(csv_path)
+    with path.open("r", newline="", encoding="utf-8-sig") as csv_file:
+        reader = csv.DictReader(csv_file)
+        if reader.fieldnames is None:
+            raise ValueError("The CSV file is empty or has no header row.")
+
+        missing = [column for column in REQUIRED_COLUMNS if column not in reader.fieldnames]
+        if missing:
+            raise ValueError(f"CSV is missing required columns: {', '.join(missing)}")
+
+        inventory = []
+        for row_number, row in enumerate(reader, start=2):
+            vehicle = {key: (row.get(key) or "").strip() for key in REQUIRED_COLUMNS}
+            if not vehicle["vin"]:
+                raise ValueError(f"Row {row_number} has no VIN.")
+
+            try:
+                vehicle["year"] = int(vehicle["year"])
+                vehicle["range"] = int(vehicle["range"])
+                vehicle["topSpeed"] = int(vehicle["topSpeed"])
+                vehicle["zeroSixty"] = float(vehicle["zeroSixty"])
+                vehicle["mileage"] = int(vehicle["mileage"])
+            except ValueError as error:
+                raise ValueError(f"Row {row_number} contains an invalid numeric value.") from error
+
+            inventory.append(vehicle)
+
+    return inventory
+
+
+def main() -> None:
+    inventory = load_vehicle_inventory()
+    print(f"Loaded {len(inventory)} vehicles.")
+    for vehicle in inventory:
+        print("\n" + "-" * 32)
+        for key, value in vehicle.items():
+            print(f"{key}: {value}")
+
+
+if __name__ == "__main__":
+    main()
